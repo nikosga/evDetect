@@ -1,0 +1,2 @@
+# evDetect
+Event detection algorithm
