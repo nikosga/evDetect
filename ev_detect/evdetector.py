@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
+from scipy.signal import detrend
 import statsmodels.formula.api as smf
 sns.set()
 
@@ -16,6 +17,8 @@ class Detector():
         self.coef_label=None
         self.series=pd.DataFrame()
         self.elambda=None
+        self.metric_label = 'metric'
+        self.time_label = 'time'
 
     def estimate_event_type(self):
         self.event_type='constant'
@@ -31,12 +34,12 @@ class Detector():
         results = {'time':[], 'coef':[], 'pval':[], 'rsquared':[]}
         for t in range(1, len(series)+1):
             if t>min_periods and t<len(series)-min_periods:
-                tmp = series[(series.time >= t - min_periods) & (series.time < t + min_periods)].copy()
-                tmp['event'] = np.where(tmp.time>=t, 1, 0)
-                tmp['time_from_event'] = np.where(tmp.time>t, tmp.time-t, 0)
+                tmp = series[(series[self.time_label] >= t - min_periods) & (series[self.time_label] < t + min_periods)].copy()
+                tmp['event'] = np.where(tmp[self.time_label]>=t, 1, 0)
+                tmp['time_from_event'] = np.where(tmp[self.time_label]>t, tmp[self.time_label]-t, 0)
 
                 model = smf.ols(formula=formula, data=tmp).fit()
-                results['time'].append(t)
+                results[self.time_label].append(t)
                 results['coef'].append(model.params[coef_label])
                 results['pval'].append(model.pvalues[coef_label])
                 results['rsquared'].append(model.rsquared)
@@ -53,16 +56,31 @@ class Detector():
 
         return True, results, opt_res
 
-    def fit(self, series, event_type=None):
+    def detrend(self, series):
+        #model = smf.ols(formula=f'{self.metric_label} ~ {self.time_label}', data=series).fit()
+        #series[f'detrend_{self.metric_label}'] = series[self.metric_label] - model.predict(series)
+        series[f'detrend_{self.metric_label}'] = detrend(series[self.metric_label], type='linear')
+        return series
+
+    def fit(self, series, metric_label='metric', time_label='time', event_type=None, detrend=False):
+        self.metric_label = metric_label
+        self.time_label = time_label
+        #if detrend:
+        #    series = self.detrend(series)
+        #    self.metric_label=f'detrend_{self.metric_label}'
+
         if event_type is not None:
             self.event_type=event_type
 
         if self.event_type=='diminishing':
-            formula='metric ~ event:np.exp(-l*time_from_event)'
+            formula=f'{self.metric_label} ~ event:np.exp(-l*time_from_event)'
             coef_label='event:np.exp(-l * time_from_event)'
         else:
-            formula='metric ~ event'
+            formula=f'{self.metric_label} ~ event'
             coef_label='event'
+
+        if detrend:
+            formula = formula+' + time'
 
         self.detected, self.results, self.detected_event = self.fit_from_formula(series, formula, coef_label)
 
@@ -86,11 +104,11 @@ class Detector():
             ms['event'] = np.where(ms.time>=evdate, 1, 0)
             ms['time_from_event'] = np.where(ms.time>evdate, ms.time-evdate, 0)
             model = smf.ols(formula=self.formula, data=ms).fit()
-            self.series['fitted_metric'] = model.predict(ms)
+            self.series[f'fitted_{self.metric_label}'] = model.predict(ms)
             print(model.summary())
 
     def plot(self):
         plt.figure(figsize=(10,6))
-        sns.lineplot(x='time', y='metric', data=self.series)
-        sns.lineplot(x='time', y='fitted_metric', data=self.series)
+        sns.lineplot(x='time', y=self.metric_label, data=self.series)
+        sns.lineplot(x='time', y=f'fitted_{self.metric_label}', data=self.series)
         plt.show()

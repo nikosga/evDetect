@@ -28,6 +28,15 @@ class Scenario:
             y = np.where(t>=self.effect_time, y+5, y)
             s = pd.DataFrame({'time':t, 'metric':y})
 
+        elif self.scenario_type=='constant_with_trend':
+            y = np.random.normal(scale=self.std, size=self.n_records)
+            t = np.arange(1, len(y)+1)
+            b = 0.01
+            y = y + b*t
+
+            y = np.where(t>=self.effect_time, y+5, y)
+            s = pd.DataFrame({'time':t, 'metric':y})
+
         elif self.scenario_type=='diminishing':
             y = np.random.normal(loc=0, scale=self.std, size=self.n_records)
             t = np.arange(1, len(y)+1)
@@ -36,6 +45,18 @@ class Scenario:
             decay = 0.9
             y = np.where(t==self.effect_time, y+5, y)
             y = geometric_adstock(y, decay, self.effect_time, max_effect_time)
+            s = pd.DataFrame({'time':t, 'metric':y})
+
+        elif self.scenario_type=='diminishing_with_trend':
+            y = np.random.normal(loc=0, scale=self.std, size=self.n_records)
+            t = np.arange(1, len(y)+1)
+
+            max_effect_time=self.effect_time+50
+            decay = 0.9
+            y = np.where(t==self.effect_time, y+5, y)
+            y = geometric_adstock(y, decay, self.effect_time, max_effect_time)
+            b = 0.01
+            y = y + b*t
             s = pd.DataFrame({'time':t, 'metric':y})
         
         else:
