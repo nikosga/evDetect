@@ -4,5 +4,3 @@ scipy
 statsmodels
 matplotlib
 seaborn
-jupyter
-jupyter_http_over_ws
