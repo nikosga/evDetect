@@ -1,2 +1,2 @@
 # evDetect
-Event detection algorithm
+Parametric event detection & inference library
