@@ -6,16 +6,13 @@ from scipy.signal import detrend
 import statsmodels.formula.api as smf
 sns.set()
 
-# learn event_type
 
 class Detector():
     
-    def __init__(self, min_periods=30, event_type='constant'):
+    def __init__(self, min_periods=30):
         self.min_periods=min_periods
-        self.event_type=event_type
         self.results=None
         self.detected=False
-        self.detected_event=None
         self.formula=None
         self.coef_label=None
         self.series=pd.DataFrame()
@@ -44,41 +41,41 @@ class Detector():
 
         results['weighted_coef'] = (1 - results['pval'])*results['coef']*results['rsquared']
 
-        for col in ['coef', 'pval', 'weighted_coef', 'rsquared']:
+        for col in ['coef', 'trend', 'pval', 'trend_pval', 'weighted_coef', 'rsquared']:
             results[col] = results[col].round(2)
 
         maxindex = results['weighted_coef'].idxmax()
         opt_res = results.iloc[[maxindex]]
-
-        return True, results, opt_res
+        if opt_res['weighted_coef'].values[0]>0.01*series[self.metric_label].mean():
+            self.detected=True
+        else:
+            self.detected=False
+        results['detected_event'] = np.where((results.index==maxindex) & (self.detected), 1, 0)
+        return results
 
     def fit(self, series, metric_label='metric', time_label='time'):
         self.metric_label = metric_label
         self.time_label = time_label
 
         # build regression formula
-        if self.event_type=='diminishing':
-            formula=f'{self.metric_label} ~ event:np.exp(-l*time_from_event)'
-            coef_label='event:np.exp(-l * time_from_event)'
-        else:
-            formula=f'{self.metric_label} ~ event'
-            coef_label='event'
-
+        formula=f'{self.metric_label} ~ event:np.exp(-l*time_from_event)'
+        coef_label='event:np.exp(-l * time_from_event)'
         formula = formula+' + time'
 
         # greedy-search Lambda
-        if self.event_type=='diminishing':
-            weighted_coefs = {'lambda':[], 'coef':[]}
-            for l in np.arange(0, 1, 0.05):
-                self.Lambda=l
-                self.detected, self.results, self.detected_event = self.fit_from_formula(series, formula, coef_label)
-                weighted_coefs['coef'].append(self.detected_event['weighted_coef'].values[0])
-                weighted_coefs['lambda'].append(l)
-            weighted_coefs=pd.DataFrame(weighted_coefs)
-            id = weighted_coefs['coef'].idxmax()
-            self.Lambda=weighted_coefs.loc[id, 'lambda']
-        
-        self.detected, self.results, self.detected_event = self.fit_from_formula(series, formula, coef_label)
+        weighted_coefs = {'lambda':[], 'coef':[]}
+        for l in np.arange(0, 1, 0.05):
+            self.Lambda=l
+            self.results = self.fit_from_formula(series, formula, coef_label)
+            event_row = self.results[self.results.detected_event==1]
+            weighted_coefs['coef'].append(event_row['weighted_coef'].values[0])
+            weighted_coefs['lambda'].append(l)
+        weighted_coefs=pd.DataFrame(weighted_coefs)
+        id = weighted_coefs['coef'].idxmax()
+        self.Lambda=weighted_coefs.loc[id, 'lambda']
+
+        # fit optimal
+        self.results = self.fit_from_formula(series, formula, coef_label)
 
         self.series=series
         self.formula=formula
@@ -86,28 +83,30 @@ class Detector():
         return self
     
     def summary(self):
-        return {
-            'detected':self.detected,
-            'analysis_data':self.results,
-            'detected_event':self.detected_event,
-            'event_time':None,
-            'event_duraton':None,
-            'event_type':None
-        }
+        if self.detected:
+            return {
+                'detected':self.detected,
+                'optimal_results':self.results[self.results.detected_event==1].to_dict('records'),
+                'event_time':self.results[self.results.detected_event==1][self.time_label].values[0],
+                'event_halflife':np.log(2)/self.Lambda if self.Lambda!=0 else np.inf,
+                'decay_lambda':self.Lambda
+            }
+        else:
+            return {}
 
     def predict(self):
         if self.detected:
             ms = self.series.copy()
-            evdate = self.detected_event.time.values[0]
+            evdate = self.results[self.results.detected_event==1][self.time_label].values[0]
             l=self.Lambda
-            ms['event'] = np.where(ms.time>=evdate, 1, 0)
-            ms['time_from_event'] = np.where(ms.time>evdate, ms.time-evdate, 0)
+            ms['event'] = np.where(ms[self.time_label]>=evdate, 1, 0)
+            ms['time_from_event'] = np.where(ms[self.time_label]>evdate, ms[self.time_label]-evdate, 0)
             model = smf.ols(formula=self.formula, data=ms).fit()
             self.series[f'fitted_{self.metric_label}'] = model.predict(ms)
             print(model.summary())
 
     def plot(self):
         plt.figure(figsize=(10,6))
-        sns.lineplot(x='time', y=self.metric_label, data=self.series)
-        sns.lineplot(x='time', y=f'fitted_{self.metric_label}', data=self.series)
+        sns.lineplot(x=self.time_label, y=self.metric_label, data=self.series)
+        sns.lineplot(x=self.time_label, y=f'fitted_{self.metric_label}', data=self.series)
         plt.show()
