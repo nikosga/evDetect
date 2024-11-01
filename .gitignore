@@ -164,3 +164,5 @@ cython_debug/
 dev_requirements.txt
 runcolab.sh
 .DS_Store
+publish.sh
+main.py

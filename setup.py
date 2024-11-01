@@ -5,7 +5,7 @@ with open('README.md') as f:
 
 setup(
     name='evdetect',
-    version='0.1.1',    
+    version='0.1.2',    
     description='Parametric event detection & inference library',
     long_description=long_description,
     long_description_content_type='text/markdown',
