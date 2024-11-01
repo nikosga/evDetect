@@ -86,11 +86,15 @@ class Detector():
         if self.detected:
             return {
                 'detected':self.detected,
-                'optimal_results':self.results[self.results.detected_event==1].to_dict('records'),
-                'event_time':self.results[self.results.detected_event==1][self.time_label].values[0],
-                'event_halflife':np.log(2)/self.Lambda if self.Lambda!=0 else np.inf,
-                'decay_lambda':self.Lambda
+                #'optimal_results':self.results[self.results.detected_event==1].to_dict('records'),
+                'event_time':float(self.results[self.results.detected_event==1][self.time_label].values[0]),
+                'event_halflife':float(round(np.log(2)/self.Lambda,1) if self.Lambda!=0 else np.inf),
+                'decay_lambda':float(self.Lambda),
+                'amplitude':float(self.results[self.results.detected_event==1]['coef'].values[0]),
+                'trend':float(self.results[self.results.detected_event==1]['trend'].values[0]),
+                'rsquared':float(self.results[self.results.detected_event==1]['rsquared'].values[0])
             }
+
         else:
             return {}
 
