@@ -4,7 +4,6 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from joblib import Parallel, delayed
 import multiprocessing
-import statsmodels.formula.api as smf
 import statsmodels.api as sm
 sns.set()
 
@@ -110,8 +109,12 @@ class Detector():
             self.series[f'fitted_{self.metric_label}'] = model.predict(X)
             print(model.summary())
 
-    def plot(self):
+    def plot(self, save_plot=False):
         plt.figure(figsize=(10,6))
         sns.lineplot(x=self.time_label, y=self.metric_label, data=self.series)
         sns.lineplot(x=self.time_label, y=f'fitted_{self.metric_label}', data=self.series)
+        plt.tight_layout()
+        if save_plot:
+            plt.savefig('figures/plot.png', bbox_inches='tight')
+        
         plt.show()
