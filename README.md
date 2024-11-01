@@ -34,7 +34,6 @@ s = Scenario()
 d=Detector()
 d.fit(s.data)
 print(d.summary())
-d.predict()
 d.plot()
 ```
 
