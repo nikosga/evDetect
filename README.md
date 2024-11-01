@@ -12,7 +12,7 @@ evDetect is a minimal python library for:
 
 The underlying assumption is that every event can be approximated by an exponential decay process:
 
-$$y=Ae^{(-\lambda t)}$$
+$$y=Ae^{-\lambda t}$$
 
 Because the library has to scan through every time period and tune the optimal parameter $\lambda$ we have included the functionality for multiprocessing to accelerate the computation time.
 
@@ -40,7 +40,7 @@ d.plot()
 
 **Summary Example**
 
-```json
+```python
 {
     'detected': True, 
     'event_time': 200.0, 
