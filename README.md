@@ -24,4 +24,5 @@ d.plot()
 ```
 
 For parallel processing use `fit(...,parallel=True)`
+
 For more examples see the tutorial in the notebooks folder.
