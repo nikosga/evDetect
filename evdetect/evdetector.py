@@ -31,7 +31,7 @@ class Detector():
         self.Lambda=0
         self.metric_label = 'metric'
         self.time_label = 'time'
-
+        self.model=None
 
     def fit_from_formula(self, series, n_cores=1):
 
@@ -54,6 +54,23 @@ class Detector():
             self.detected=False
         results['detected_event'] = np.where((results.index==maxindex) & (self.detected), 1, 0)
         return results
+
+    def __predict(self):
+        if self.detected:
+            ms = self.series.copy()
+            evdate = self.results[self.results.detected_event==1][self.time_label].values[0]
+            l=self.Lambda
+            ms['event'] = np.where(ms[self.time_label]>=evdate, 1, 0)
+            ms['time_from_event'] = np.where(ms[self.time_label]>evdate, ms[self.time_label]-evdate, 0)
+            ms['event_exp_lt'] = ms['event']*np.exp(-l*ms['time_from_event'])
+            ms['Intercept']=1
+            X = ms[['event_exp_lt', self.time_label, 'Intercept']]
+            y = ms[self.metric_label]
+            model = sm.OLS(y, X).fit()
+            self.series[f'fitted_{self.metric_label}'] = model.predict(X)
+            return model
+        else:
+            return None
 
     def fit(self, series, metric_label='metric', time_label='time', parallel=True):
         if parallel:
@@ -80,13 +97,13 @@ class Detector():
         # fit optimal
         self.results = self.fit_from_formula(series, n_cores=n_cores)
         self.series=series
-        return self
+        self.model = self.__predict()
+        return self.model
     
     def summary(self):
         if self.detected:
             return {
                 'detected':self.detected,
-                #'optimal_results':self.results[self.results.detected_event==1].to_dict('records'),
                 'event_time':float(self.results[self.results.detected_event==1][self.time_label].values[0]),
                 'event_halflife':float(round(np.log(2)/self.Lambda,1) if self.Lambda!=0 else np.inf),
                 'decay_lambda':float(self.Lambda),
@@ -98,21 +115,6 @@ class Detector():
         else:
             return {}
 
-    def predict(self):
-        if self.detected:
-            ms = self.series.copy()
-            evdate = self.results[self.results.detected_event==1][self.time_label].values[0]
-            l=self.Lambda
-            ms['event'] = np.where(ms[self.time_label]>=evdate, 1, 0)
-            ms['time_from_event'] = np.where(ms[self.time_label]>evdate, ms[self.time_label]-evdate, 0)
-            ms['event_exp_lt'] = ms['event']*np.exp(-l*ms['time_from_event'])
-            ms['Intercept']=1
-            X = ms[['event_exp_lt', self.time_label, 'Intercept']]
-            y = ms[self.metric_label]
-            model = sm.OLS(y, X).fit()
-            self.series[f'fitted_{self.metric_label}'] = model.predict(X)
-            print(model.summary())
-
     def plot(self, save_plot=False):
         plt.figure(figsize=(10,6))
         sns.lineplot(x=self.time_label, y=self.metric_label, data=self.series)
@@ -120,5 +122,4 @@ class Detector():
         plt.tight_layout()
         if save_plot:
             plt.savefig('figures/plot.png', bbox_inches='tight')
-        
         plt.show()
