@@ -59,8 +59,6 @@ No trend and infinite half-life event
 Trend with non infinite half-life event
 ![Example2](figures/plot_2.png)
 
-For parallel processing use `fit(...,parallel=True)`
-
 For more examples see the tutorial in the notebooks folder.
 
 ## Author
