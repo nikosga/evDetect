@@ -13,6 +13,14 @@ def geometric_adstock(series, decay, event_time, max_effect_time):
 class Scenario:
     
     def __init__(self, scenario_type='constant', n_records=500, std=0.2, effect_time=200):
+        """Data generation class for the examples
+
+        Args:
+            scenario_type (str, optional): The type of pattern you would like to generate. Defaults to 'constant'.
+            n_records (int, optional): Number of time periods. Defaults to 500.
+            std (float, optional): Noise measured in standard deviation of normal distribution. Defaults to 0.2.
+            effect_time (int, optional): The time the event should appear. Defaults to 200.
+        """
         self.scenario_type=scenario_type
         self.n_records=n_records
         self.std=std
@@ -20,6 +28,14 @@ class Scenario:
         self.data=self.gen_data()
     
     def gen_data(self):
+        """The method for data generation
+
+        Raises:
+            ValueError: If a scenarion that is not available is requested
+
+        Returns:
+            pd.DataFrame: The dataframe with the synthetic data
+        """
 
         if self.scenario_type=='constant':
             y = np.random.normal(scale=self.std, size=self.n_records)
@@ -65,6 +81,8 @@ class Scenario:
         return s
     
     def plot(self):
+        """Plots the synthetic data
+        """
         plt.figure(figsize=(10,6))
         sns.lineplot(x='time', y='metric', data=self.data)
         plt.show()
